@@ -1,0 +1,9 @@
+[Unit]
+Description=Guild Manager
+After=multi-user.target
+
+[Service]
+ExecStart= /path/to/python /path/to/project
+
+[Install]
+WantedBy=multi-user.target
