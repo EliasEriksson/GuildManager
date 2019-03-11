@@ -3,7 +3,7 @@ import asyncio
 import re
 from datetime import datetime
 from .requester import Requester
-from . import messages as mes
+from .messages import messages as mes
 from .manager import Manager
 from . import exceptions
 import discord
@@ -110,7 +110,7 @@ class Client(discord.Client):
                         await message.author.create_dm()
 
                     reply: discord.Message = await self._ask_for(
-                        "2", message, mes.instatruell.introduction)
+                        "2", message, mes.install.introduction)
 
                     if reply.content == "1":
                         reply: discord.Message = await self._ask_for(
