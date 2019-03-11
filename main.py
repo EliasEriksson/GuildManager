@@ -1,5 +1,6 @@
 from guildmanager.client import Client
 import json
+import os
 
 """
 Notes:
@@ -11,6 +12,7 @@ Notes:
 
 
 def load_token(filename="secret.json"):
+    filename = os.path.join(os.path.dirname(__file__), filename)
     with open(filename) as f:
         file = json.load(f)
     return file["client_token"]
