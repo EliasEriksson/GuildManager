@@ -1,11 +1,14 @@
 from typing import List
 import asyncio
+import json
 import re
+import os
 from datetime import datetime
 from .requester import Requester
 from .messages import messages as mes
 from .manager import Manager
 from . import exceptions
+from . import PATH
 import discord
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -497,6 +500,13 @@ class Client(discord.Client):
                 pass
             except exceptions.Timeout:
                 await message.author.dm_channel.send(mes.timeout)
+
+    def boot(self):
+        filename = os.path.join(PATH, "secret.json")
+        with open(filename) as f:
+            file = json.load(f)
+        token = file["client_token"]
+        self.run(token)
 
 
 if __name__ == '__main__':
