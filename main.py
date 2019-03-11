@@ -1,4 +1,4 @@
-from client import Client
+from guildmanager.client import Client
 import json
 
 """
