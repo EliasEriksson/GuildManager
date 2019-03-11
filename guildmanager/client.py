@@ -1,11 +1,13 @@
 from typing import List
 import asyncio
 import re
+from datetime import datetime
 from .requester import Requester
 from . import messages as mes
 from .manager import Manager
 from . import exceptions
 import discord
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # TODO tell ppl not to start command in the private mssage unless told to do so
 # TODO tell ppl what to name the api key to use if you dont know what to name it
@@ -22,8 +24,8 @@ class Client(discord.Client):
             re.compile(r"^/unregister$"): self.unregister,
             re.compile(r"^/refresh$"):    self.refresh,
             re.compile(r"^/unlink$"):     self.unlink,
-            re.compile(r"^/help$"):       self.help
-        }
+            re.compile(r"^/help$"):       self.help}
+
         self.check_reply = {
             "api": re.compile(
                 r"^[A-Z0-9]{8}-(?:[A-Z0-9]{4}-){3}[A-Z0-9]{20}-(?:[A-Z0-9]{4}-){3}[A-Z0-9]{12}$"),
@@ -32,8 +34,8 @@ class Client(discord.Client):
             "3": re.compile(r"^[1-3]$"),
             "4": re.compile(r"^[1-4]$"),
             "5": re.compile(r"^[1-5]$"),
-            "number": re.compile(r"^\d+$")
-        }
+            "number": re.compile(r"^\d+$")}
+
         self.db = "db.db"
 
     async def check_commands(self, message: discord.Message) -> None:
@@ -94,72 +96,73 @@ class Client(discord.Client):
         :param message: discord.Message
         :return: None
         """
-        server = message.channel.guild
-        if server:
-            server_id = server.id
-            owner_discord_id = server.owner_id
-            await self._ensure_dm_excists(message)
-            async with Manager(self.db) as manager:
-                if await manager.server_excists(server_id):
-                    await message.author.dm_channel.send(mes.install.already_excists)
-                    return
-                if not message.author.dm_channel:
-                    await message.author.create_dm()
-
-                reply: discord.Message = await self._ask_for(
-                    "2", message, mes.instatruell.introduction)
-
-                if reply.content == "1":
-                    reply: discord.Message = await self._ask_for(
-                        "api", message, mes.install.provide_api)
-                    api = reply.content
-                    async with Requester(api) as session:
-                        guilds = await session.get_guilds()
-                        question = (mes.install.guild_question.replace(
-                            "[placeholder]", "\n".join(
-                                [f"{index+1}: {guild['name']} [{guild['tag']}]"
-                                 for index, guild in enumerate(guilds)])))
-
-                        reply: discord.Message = await self._ask_for(
-                            str(len(guilds)), message, question)
-                        guild = guilds[int(reply.content) - 1]
-
-                        owner_gw2_name = await session.get_gw2_username()
-
-                    try:
-                        await manager.add_server(
-                            server_id=server_id,
-                            owner_discord_id=owner_discord_id,
-                            owner_gw2_name=owner_gw2_name,
-                            guild_id=guild["guild_id"],
-                            api=api)
-
-                        await message.author.dm_channel.send(mes.install.success)
-                        reply = await self._ask_for("2", message, mes.install.register)
-                        if reply.content == "1":
-                            try:
-                                try:
-                                    await manager.add_user(owner_discord_id, owner_gw2_name, api)
-                                except exceptions.UserAlreadyExcists:
-                                    pass
-                                await manager.add_user_server(owner_discord_id, server_id)
-                                await message.author.dm_channel.send(mes.install.registered)
-                            except exceptions.UsersServersLinkAlreadyExcists:
-                                message.author.dm_channel.send(mes.install.already_excists)
-                        else:
-                            await message.author.dm_channel.send(mes.install.not_registering)
-                    except exceptions.ServerAlreadyExcists:
+        if "guild" in dir(message.channel):
+            server = message.channel.guild
+            if server:
+                server_id = server.id
+                owner_discord_id = server.owner_id
+                await self._ensure_dm_excists(message)
+                async with Manager(self.db) as manager:
+                    if await manager.server_excists(server_id):
                         await message.author.dm_channel.send(mes.install.already_excists)
-                else:
-                    await message.author.dm_channel.send(mes.install.api_help_1)
-                    await asyncio.sleep(1)
-                    await message.author.dm_channel.send(mes.install.api_help_2)
-                    await asyncio.sleep(1)
-                    await message.author.dm_channel.send(mes.install.api_help_3)
-                    await asyncio.sleep(1)
-                    reply = await self._ask_for("2", message, mes.install.api_help_4)
+                        return
+                    if not message.author.dm_channel:
+                        await message.author.create_dm()
+
+                    reply: discord.Message = await self._ask_for(
+                        "2", message, mes.instatruell.introduction)
+
                     if reply.content == "1":
-                        await self.install(message)
+                        reply: discord.Message = await self._ask_for(
+                            "api", message, mes.install.provide_api)
+                        api = reply.content
+                        async with Requester(api) as session:
+                            guilds = await session.get_guilds()
+                            question = (mes.install.guild_question.replace(
+                                "[placeholder]", "\n".join(
+                                    [f"{index+1}: {guild['name']} [{guild['tag']}]"
+                                     for index, guild in enumerate(guilds)])))
+
+                            reply: discord.Message = await self._ask_for(
+                                str(len(guilds)), message, question)
+                            guild = guilds[int(reply.content) - 1]
+
+                            owner_gw2_name = await session.get_gw2_username()
+
+                        try:
+                            await manager.add_server(
+                                server_id=server_id,
+                                owner_discord_id=owner_discord_id,
+                                owner_gw2_name=owner_gw2_name,
+                                guild_id=guild["guild_id"],
+                                api=api)
+
+                            await message.author.dm_channel.send(mes.install.success)
+                            reply = await self._ask_for("2", message, mes.install.register)
+                            if reply.content == "1":
+                                try:
+                                    try:
+                                        await manager.add_user(owner_discord_id, owner_gw2_name, api)
+                                    except exceptions.UserAlreadyExcists:
+                                        pass
+                                    await manager.add_user_server(owner_discord_id, server_id)
+                                    await message.author.dm_channel.send(mes.install.registered)
+                                except exceptions.UsersServersLinkAlreadyExcists:
+                                    message.author.dm_channel.send(mes.install.already_excists)
+                            else:
+                                await message.author.dm_channel.send(mes.install.not_registering)
+                        except exceptions.ServerAlreadyExcists:
+                            await message.author.dm_channel.send(mes.install.already_excists)
+                    else:
+                        await message.author.dm_channel.send(mes.install.api_help_1)
+                        await asyncio.sleep(1)
+                        await message.author.dm_channel.send(mes.install.api_help_2)
+                        await asyncio.sleep(1)
+                        await message.author.dm_channel.send(mes.install.api_help_3)
+                        await asyncio.sleep(1)
+                        reply = await self._ask_for("2", message, mes.install.api_help_4)
+                        if reply.content == "1":
+                            await self.install(message)
 
     @staticmethod
     async def _ensure_dm_excists(message: discord.Message) -> None:
@@ -256,39 +259,40 @@ class Client(discord.Client):
         :param message: original message that invoket the registration command
         :return: None
         """
-        if message.channel.guild:
-            await self._ensure_dm_excists(message)
-            async with Manager(self.db) as manager:
-                user = await manager.get_user(message.author.id)
-                if user:
-                    await self._register_with_excisting_user(message, manager, user)
-                else:
-                    reply: discord.Message = await self._ask_for(
-                        "3", message, mes.register.introduction)
-
-                    if reply.content == "1":
-                        reply: discord.Message = await self._ask_for(
-                            "api", message, mes.register.provide_api)
-                        async with Requester(reply.content) as session:
-                            gw2_name = await session.get_gw2_username()
-                        await manager.add_user(message.author.id, gw2_name, reply.content)
-                        user = await manager.get_user(message.author.id)
+        if "guild" in dir(message.channel):
+            if message.channel.guild:
+                await self._ensure_dm_excists(message)
+                async with Manager(self.db) as manager:
+                    user = await manager.get_user(message.author.id)
+                    if user:
                         await self._register_with_excisting_user(message, manager, user)
-
-                    elif reply.content == "2":
-                        await message.author.dm_channel.send(mes.register.api_help_1)
-                        await asyncio.sleep(1)
-                        await message.author.dm_channel.send(mes.register.api_help_2)
-                        await asyncio.sleep(2)
-                        await message.author.dm_channel.send(mes.register.api_help_3)
+                    else:
                         reply: discord.Message = await self._ask_for(
-                            "2", message, mes.register.api_help_4)
+                            "3", message, mes.register.introduction)
 
                         if reply.content == "1":
-                            await self.register(message)
+                            reply: discord.Message = await self._ask_for(
+                                "api", message, mes.register.provide_api)
+                            async with Requester(reply.content) as session:
+                                gw2_name = await session.get_gw2_username()
+                            await manager.add_user(message.author.id, gw2_name, reply.content)
+                            user = await manager.get_user(message.author.id)
+                            await self._register_with_excisting_user(message, manager, user)
 
-                    else:
-                        await message.author.dm_channel.send(mes.register.offended)
+                        elif reply.content == "2":
+                            await message.author.dm_channel.send(mes.register.api_help_1)
+                            await asyncio.sleep(1)
+                            await message.author.dm_channel.send(mes.register.api_help_2)
+                            await asyncio.sleep(2)
+                            await message.author.dm_channel.send(mes.register.api_help_3)
+                            reply: discord.Message = await self._ask_for(
+                                "2", message, mes.register.api_help_4)
+
+                            if reply.content == "1":
+                                await self.register(message)
+
+                        else:
+                            await message.author.dm_channel.send(mes.register.offended)
 
     async def unregister(self, message: discord.Message) -> None:
         """
@@ -299,23 +303,24 @@ class Client(discord.Client):
         :param message: original message that invoked the remove command
         :return: None
         """
-        if message.channel.guild:
-            await self._ensure_dm_excists(message)
-            async with Manager(self.db) as manager:
-                user = await manager.get_user(message.author.id)
-                if user:
-                    reply: discord.Message = await self._ask_for(
-                        "2", message, mes.unregister.are_you_sure)
-                    if reply.content == "1":
-                        try:
-                            await manager.remove_user(message.author.id)
-                            await message.author.dm_channel.send(mes.unregister.success)
-                        except exceptions.MissingUser:
-                            await message.author.dm_channel.send(mes.unregister.not_registered)
+        if "guild" in dir(message.channel):
+            if message.channel.guild:
+                await self._ensure_dm_excists(message)
+                async with Manager(self.db) as manager:
+                    user = await manager.get_user(message.author.id)
+                    if user:
+                        reply: discord.Message = await self._ask_for(
+                            "2", message, mes.unregister.are_you_sure)
+                        if reply.content == "1":
+                            try:
+                                await manager.remove_user(message.author.id)
+                                await message.author.dm_channel.send(mes.unregister.success)
+                            except exceptions.MissingUser:
+                                await message.author.dm_channel.send(mes.unregister.not_registered)
+                        else:
+                            await message.author.dm_channel.send(mes.unregister.regret)
                     else:
-                        await message.author.dm_channel.send(mes.unregister.regret)
-                else:
-                    await message.author.dm_channel.send(mes.unregister.not_registered)
+                        await message.author.dm_channel.send(mes.unregister.not_registered)
 
     async def uninstall(self, message: discord.Message) -> None:
         """
@@ -326,24 +331,25 @@ class Client(discord.Client):
         :param message: original message that invoked the uninstall command
         :return: None
         """
-        if message.channel.guild:
-            await self._ensure_dm_excists(message)
-            async with Manager(self.db) as manager:
-                server = await manager.get_server(message.channel.guild.id)
-                # TODO change to server excists
-                if server:
-                    reply: discord.Message = await self._ask_for(
-                        "2", message, mes.uninstall.are_you_sure)
-                    if reply.content == "1":
-                        try:
-                            await manager.remove_server(message.channel.guild.id)
-                            await message.author.dm_channel.send(mes.uninstall.success)
-                        except exceptions.MissingServer:
-                            await message.author.dm_channel.send(mes.uninstall.not_installed)
+        if "guild" in dir(message.channel):
+            if message.channel.guild:
+                await self._ensure_dm_excists(message)
+                async with Manager(self.db) as manager:
+                    server = await manager.get_server(message.channel.guild.id)
+                    # TODO change to server excists
+                    if server:
+                        reply: discord.Message = await self._ask_for(
+                            "2", message, mes.uninstall.are_you_sure)
+                        if reply.content == "1":
+                            try:
+                                await manager.remove_server(message.channel.guild.id)
+                                await message.author.dm_channel.send(mes.uninstall.success)
+                            except exceptions.MissingServer:
+                                await message.author.dm_channel.send(mes.uninstall.not_installed)
+                        else:
+                            await message.author.dm_channel.send(mes.uninstall.regret)
                     else:
-                        await message.author.dm_channel.send(mes.uninstall.regret)
-                else:
-                    await message.author.dm_channel.send(mes.uninstall.not_installed)
+                        await message.author.dm_channel.send(mes.uninstall.not_installed)
 
     async def unlink(self, message: discord.Message) -> None:
         """
@@ -394,14 +400,15 @@ class Client(discord.Client):
         :param message: the original message that invoked the command
         :return: None
         """
-        async with Manager(self.db) as manager:
-            server_data = await manager.get_server(message.guild.id)
-            server = self.get_guild(server_data["server_id"])
-        if server:
-            await self._refresh_server(server, server_data, manager)
-        else:
-            # TODO error message here
-            pass
+        if "guild" in dir(message.channel):
+            async with Manager(self.db) as manager:
+                server_data = await manager.get_server(message.guild.id)
+                server = self.get_guild(server_data["server_id"])
+            if server:
+                await self._refresh_server(server, server_data, manager)
+            else:
+                # TODO error message here
+                pass
 
     async def _refresh_all(self) -> None:
         """
@@ -465,27 +472,31 @@ class Client(discord.Client):
 
     async def on_ready(self) -> None:
         """
-        refreshes the ranks/servers on boot
+        refreshes the ranks/servers on boot and every 10 minute
 
         :return: None
         """
-        print("Bot online.")
+        print(f"Bot went online @ {datetime.now()}")
+
         await self._refresh_all()
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(self._refresh_all, "interval", minutes=10)
+        scheduler.start()
 
     async def on_message(self, message: discord.Message) -> None:
         """
         command handle
-        :param message:
-        :return:
+
+        :param message: any message the bot is going to see
+        :return: None
         """
         if message.author != self.user:
-            if "guild" in dir(message.channel):  # TODO is there a better way?
-                try:
-                    await self.check_commands(message)
-                except exceptions.DoubleCommand:
-                    pass
-                except exceptions.Timeout:
-                    await message.author.dm_channel.send(mes.timeout)
+            try:
+                await self.check_commands(message)
+            except exceptions.DoubleCommand:
+                pass
+            except exceptions.Timeout:
+                await message.author.dm_channel.send(mes.timeout)
 
 
 if __name__ == '__main__':
