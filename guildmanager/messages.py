@@ -171,6 +171,13 @@ messages = EN({
     "help": {
         "commands": "availeble commands: `/register`, `/help`, `/install`, `/uninstall`, "
         "`/unlink`, `/unregister`"
+    },
+    "refresh": {
+        "success":
+            "Server roles was successfully refreshed",
+        "missing_server":
+            "This discord server is not connected to a guild wars 2 guild yet. Go yell at your "
+            "guild master to either use me or boot me out!"
     }
 })
 
