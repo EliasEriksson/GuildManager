@@ -169,8 +169,8 @@ messages = EN({
             "and tell me about this error =)",
     },
     "help": {
-        "commands": "availeble commands: `/register`, `/help`, `/install`, `/uninstall`, "
-        "`/unlink`, `/unregister`"
+        "commands": "availeble commands: `/gm register`, `/gm help`, `/gm install`, "
+                    "`/gm uninstall`, `/unlink`, `/unregister`"
     },
     "refresh": {
         "success":

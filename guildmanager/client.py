@@ -188,12 +188,12 @@ class Client(discord.Client):
         :param ranks: gw guild ranks for a guild
         :return: None
         """
-        channel = self.get_channel(server_id)
-        roles = [role.name for role in channel.guild.roles]
-        if channel.guild:
+        server = self.get_guild(server_id)
+        if server:
+            roles = [role.name for role in server.roles]
             for rank in ranks:
                 if rank not in roles:
-                    await channel.guild.create_role(
+                    await server.create_role(
                         name=rank,
                         reason="Excisting rank in guild does nto excist as role"
                                "in this discord"
