@@ -100,7 +100,16 @@ messages = EN({
             "You are not a member of this guild. I will not link your discord accout to this "
             "guilds discord server.",
         "registered":
-            "You are already registred and linked to this discord server."
+            "You are already registred and linked to this discord server. If your role is "
+            "incorrect please use the command `/gm register`",
+        "authentication_error":
+            "The api key you gav me resulted in an authentication error, make sure the api key "
+            "is correctly typed to me and that it does have the 'account' and 'guild' "
+            "permissions.",
+        "unexpected_api_error":
+            "There seems to be an issue with connecting correctly to guild wars 2 api, "
+            "try again now or later and if th issue prsists please contact my developer: "
+            "`mail@eliaseriksson.eu`"
     },
     "uninstall": {
         "are_you_sure":
