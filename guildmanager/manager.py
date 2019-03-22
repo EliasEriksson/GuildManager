@@ -1,7 +1,9 @@
 from typing import List
 from collections import namedtuple
-import exceptions
+from . import exceptions
+from . import PATH
 import aiosqlite
+import os
 
 # TODO remove unused methods
 # TODO change named tuples to EasyNamespace?
@@ -40,7 +42,7 @@ class Manager:
 
         :param db: str, the database file name
         """
-        self.db = db
+        self.db = os.path.join(PATH, db)
 
     async def __aenter__(self) -> "Manager":
         """

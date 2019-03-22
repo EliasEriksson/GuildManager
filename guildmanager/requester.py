@@ -1,6 +1,6 @@
 from typing import List
-from easy_namespace import EasyNamespace as EN
-import exceptions
+# from .easy_namespace import EasyNamespace as EN
+from . import exceptions
 import aiohttp
 
 # TODO use EasyNamespace instead of dict
@@ -138,6 +138,10 @@ class Requester:
         """
         url = "https://api.guildwars2.com/v2/account"
         async with self.session.get(url) as response:
+            if response.status == 403:
+                raise exceptions.RequestAuthenticationError(
+                    f"Invalid api key: '{self.api}'"
+                )
             if not response.status == 200:
                 raise exceptions.RequestNotSuccessfull(
                     f"Unsuccessful request for url {url}\n"
@@ -145,6 +149,19 @@ class Requester:
 
             account = await response.json()
             return account["name"]
+
+    async def valid_api(self):
+        url = "https://api.guildwars2.com/v2/tokeninfo"
+        async with self.session.get(url) as response:
+            if not response.status == 200:
+                raise exceptions.RequestNotSuccessfull(
+                    f"Unsuccessful request for url {url}\n"
+                    f"status {response.status}")
+            token_info = await response.json()
+            if "account" in token_info["permissions"]:
+                if "guilds" in token_info["permissions"]:
+                    return True
+            return False
 
 
 async def main():

@@ -1,5 +1,4 @@
-from client import Client
-import json
+from guildmanager.client import Client
 
 """
 Notes:
@@ -9,14 +8,6 @@ Notes:
     see who is in the guild roseter, if in the discord list and not in guild -> left/kicked
 """
 
-
-def load_token(filename="secret.json"):
-    with open(filename) as f:
-        file = json.load(f)
-    return file["client_token"]
-
-
 if __name__ == '__main__':
-    token = load_token()
     client = Client()
-    client.run(token)
+    client.boot()

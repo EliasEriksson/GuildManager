@@ -1,4 +1,4 @@
-from easy_namespace import EasyNamespace as EN
+from .easy_namespace import EasyNamespace as EN
 
 """
 a file denoted to all the text that will be sent to a user
@@ -26,9 +26,9 @@ messages = EN({
         "api_help_2":
             "To create a new API key simply hit 'New Key' https://tinyurl.com/NewGw2Api",
         "api_help_3":
-            "Give it a cool name specific to this application and make sure the 'account' "
-            "and 'guild' checkboxes are marked then simply hit 'Create API Key' "
-            "https://tinyurl.com/MakeGw2Api\n\n",
+            "Give it a cool name specific to this application (if you dont know what just name it "
+            "`guild manager`) and make sure the 'account' and 'guild' checkboxes are marked then "
+            "simply hit 'Create API Key' https://tinyurl.com/MakeGw2Api\n\n",
         "api_help_4":
             "Do you want to continue the install? C:"
             "```"
@@ -56,7 +56,14 @@ messages = EN({
             "When you want to register just run the `/register` command in the server chat again.",
         "already_excists":
             "This server is already connected to a guild, run `/uninstall` before you try to "
-            "install another guild."
+            "install another guild.",
+        "try_again":
+            "Do you want to rerun the installation?",
+        "linked":
+            "Im not sure how but you just installed this server and you are already linked. "
+            "This should not be possible, how did you do this?",
+        "goodgye":
+            "Alrite, good bye C:"
     },
     "register": {
         "introduction":
@@ -78,9 +85,9 @@ messages = EN({
         "api_help_2":
             "To create a new API key simply hit 'New Key' https://tinyurl.com/NewGw2Api",
         "api_help_3":
-            "Give it a cool name specific to this application and make sure the 'account' "
-            "and 'guild' checkboxes are marked then simply hit 'Create API Key' "
-            "https://tinyurl.com/MakeGw2Api\n\n",
+            "Give it a cool name specific to this application (if you dont know what just name it "
+            "`guild manager`)and make sure the 'account' and 'guild' checkboxes are marked then "
+            "simply hit 'Create API Key' https://tinyurl.com/MakeGw2Api\n\n",
         "api_help_4":
             "Do you want to continue the registration? C:"
             "```"
@@ -100,7 +107,18 @@ messages = EN({
             "You are not a member of this guild. I will not link your discord accout to this "
             "guilds discord server.",
         "registered":
-            "You are already registred and linked to this discord server."
+            "You are already registred and linked to this discord server. If your role is "
+            "incorrect please use the command `/gm register`",
+        "authentication_error":
+            "The api key you gav me resulted in an authentication error, make sure the api key "
+            "is correctly typed to me and that it does have the 'account' and 'guild' "
+            "permissions.",
+        "unexpected_api_error":
+            "There seems to be an issue with connecting correctly to guild wars 2 api, "
+            "try again now or later and if th issue prsists please contact my developer: "
+            "`mail@eliaseriksson.eu`",
+        "goodbye":
+            "Alrite good bye then C:"
     },
     "uninstall": {
         "are_you_sure":
@@ -119,7 +137,24 @@ messages = EN({
         "regret":
             "I knew you would change your mind C:",
         "not_installed":
-            "I am not installed on this server :C"
+            "I am not installed on this server :C",
+        "remove_roles":
+            "Now When you have decided to remove me from the server, do you also want me to  "
+            "remove the discord roles on this server represented as a guild rank?"
+            "```"
+            "1: Yes\n"
+            "2: No"
+            "```",
+        "leave":
+            "Do you also want me to leave the server? You would have to invite me using the "
+            "invite link at `eliaseriksson.eu/guildmanager` "
+            "if you would like to use me in the future."
+            "```"
+            "1: Yes\n"
+            "2: No"
+            "```",
+        "farewell":
+            "I have done as you asked and im now leaving the server I hope I was of any use C:"
     },
     "unregister": {
         "are_you_sure":
@@ -167,10 +202,86 @@ messages = EN({
             "The API key you gave me does not seem to be Guild Wars 2 API key "
             "if you believe this is wrong send an email to eliaseriksson95@gmail.com "
             "and tell me about this error =)",
+        "number":
+            "You need to reply with a number ammong the options to proceed."
+    },
+    "errors": {
+        "refresh_error_owner":
+            "A user on your server tried to refresh the ranks and I was forbiden to change the "
+            "roles on the people in the server. This is probably beccause I am to low on the "
+            "role list in the server settings. To fix this simply move me higher up on the list. "
+            "If you run `/gm refresh` and this error doesnt show up I am in a good spot.",
+        "refresh_user_error":
+            "When I tried to update the roles on evryonee including you an error occured. "
+            "Your discord server owner have been notefied about the issue and a solution.",
+        "invalid_api":
+            "The api you gave me is lacking permissions. Make sure you tick both the `guild` "
+            "and `account` checkboxes when you create a new api. I will automaticly rerun your "
+            "last command and if you need help with generating your api key select that option.",
+        "unsuccessfull_request":
+            "Something went wrong when I tried to connect to arenanets `api.guildwars2.com` "
+            "my developer havnt told me what to do really when this happends. All I can recomend "
+            "is try again, either now or later =3",
+        "permission_error":
+            "You are not an administrator of this discord server. To be able to successfully "
+            "install this bot to a server you need to have administrator previleges.",
+        "wrong_chat_error":
+            "This command requires to be executed in the related server, otherwise I dont know "
+            "where I need to do my work =<"
     },
     "help": {
-        "commands": "availeble commands: `/register`, `/help`, `/install`, `/uninstall`, "
-        "`/unlink`, `/unregister`"
+        "commands": "availeble commands: `/gm register`, `/gm help`, `/gm install`, "
+                    "`/gm uninstall`, `/gm unlink`, `/gm unregister`, `/gm merge`"
+    },
+    "refresh": {
+        "success":
+            "Server roles was successfully refreshed",
+        "missing_server":
+            "This discord server is not connected to a guild wars 2 guild yet. Go yell at your "
+            "guild master to either use me or boot me out!",
+        "ensuring_roles":
+            "Making sure that the guild ranks exists as discord roles..."
+    },
+    "merge": {
+        "instructions":
+            "This command is used to merge ranks who have been renamed but are still "
+            "represented as a discord role. It will as a minimum remove an old role from "
+            "affected members and make sure the members gets the new role. Durring this procedure "
+            "you will have options to copy the permissions and/or delete the old role.\n"
+            "Is this what you wish to do?"
+            "```"
+            "1: Yes\n"
+            "2: No"
+            "```",
+        "goodbye":
+            "Alrite good bye C:",
+        "uninstalled_server":
+            "This server seems to be uninstalled =|",
+        "rank_question":
+            "Which one of these ranks is it that have been renamed or in some way needs to be "
+            "merged?\n```"
+            "[placeholder]"
+            "```",
+        "role_question":
+            "Which one of these roles do you wish to merge the new rank into?"
+            "```"
+            "[placeholder]"
+            "```",
+        "delete_old":
+            "Do you want me to delete the old role?"
+            "```"
+            "1: Yes\n"
+            "2: No"
+            "```",
+        "not_a_role":
+            "This rank is not a role on this server.",
+        "move_perms":
+            "Do you want me to move the permissions from the old role to the new role?\n"
+            "OBS! This will overwrite all permissions in the new role."
+            "```"
+            "1: Yes\n"
+            "2: No"
+            "```"
     }
 })
 

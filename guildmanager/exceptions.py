@@ -1,4 +1,4 @@
-class Base(BaseException):
+class Base(Exception):
     def __init__(self, message=None):
         self.message = message
 
@@ -23,7 +23,17 @@ class MissingUsersServer(Base):
     pass
 
 
+class RefreshError(Base):
+    def __init__(self, message, owner_id: int):
+        super(RefreshError, self).__init__(message)
+        self.owner_id = owner_id
+
+
 class RequestNotSuccessfull(Base):
+    pass
+
+
+class RequestAuthenticationError(Base):
     pass
 
 
