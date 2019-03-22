@@ -101,6 +101,12 @@ class Client(discord.Client):
                            "in this discord")
         await asyncio.sleep(5)
 
+    @staticmethod
+    async def _remove_roles_by_name(message, *role_names) -> None:
+        for role in message.guild.roles:
+            if role.name in role_names:
+                await role.delete(reason="Guild manager asked to remove roles.")
+
     async def _install_server(self, message: Message, api: str) -> str:
         async with Requester(api) as session:
             guilds = await session.get_guilds()
@@ -115,18 +121,14 @@ class Client(discord.Client):
             try:
                 async with Manager(self.db) as manager:
                     await manager.add_server(
-                        server_id=message.channel.guild.id,
-                        owner_discord_id=message.channel.guild.owner_id,
+                        server_id=message.guild.id,
+                        owner_discord_id=message.guild.owner_id,
                         owner_gw2_name=gw2_name,
                         guild_id=guild["guild_id"], api=api)
+                    return gw2_name
             except exceptions.ServerAlreadyExcists:
                 await message.author.dm_channel.send(mes.install.already_excists)
-                reply = await self._ask_for("2", message, mes.install.try_again)  # TODO test this
-                if reply.content == "1":
-                    return await self._install_server(message, api)
-                else:
-                    return ""
-        return gw2_name
+        return ""
 
     async def _register_guild_leader(self, message: Message, user: dict) -> None:
         """
@@ -149,6 +151,27 @@ class Client(discord.Client):
         except exceptions.UsersServersLinkAlreadyExcists:
             await message.author.dm_channel.send(mes.install.linked)
             await self.refresh(message)
+
+    async def _uninstall_server(self, message: Message) -> None:
+        reply: Message = await self._ask_for("number", message, mes.uninstall.remove_roles, 2)
+        remove_guild_roles = True if reply.content == "1" else False
+        reply: Message = await self._ask_for("number", message, mes.uninstall.leave, 2)
+        leave = True if reply.content == "1" else False
+
+        async with Manager(self.db) as manager:
+            if remove_guild_roles:
+                server_data = await manager.get_server(message.guild.id)
+                async with Requester(server_data["api"]) as session:
+                    ranks = await session.get_ranks(server_data["guild_id"])
+                await self._remove_roles_by_name(message, *ranks)
+            try:
+                await manager.remove_server(message.channel.guild.id)
+                await message.author.dm_channel.send(mes.uninstall.success)
+            except exceptions.MissingServer:
+                await message.author.dm_channel.send(mes.uninstall.not_installed)
+            if leave:
+                await message.author.dm_channel.send(mes.uninstall.farewell)
+                await message.guild.leave()
 
     async def _register_user(self, message: Message, api: str) -> None:
         async with Requester(api) as session:
@@ -270,9 +293,10 @@ class Client(discord.Client):
             reply: Message = await self._ask_for("number", message, question, len(ranks))
             rank = ranks[int(reply.content) - 1]
 
+            await self._ensure_roles_excists(message.guild, ranks)
             roles = self.get_guild(message.guild.id).roles
             if rank in [role.name for role in roles]:
-                old_role = self._get_role_in_list_by_name(roles, rank)
+                new_role = self._get_role_in_list_by_name(roles, rank)
                 roles: List[Role] = [role for role in roles
                                      if role.name not in ranks
                                      and role.name not in (rank, "@everyone")]
@@ -281,18 +305,20 @@ class Client(discord.Client):
                 role_list = "\n".join(role_list)
                 question = mes.merge.role_question.replace("[placeholder]", role_list)
                 reply: Message = await self._ask_for("number", message, question, len(roles))
-                role = roles[int(reply.content) - 1]
-
-                reply: Message = await self._ask_for("number", message, mes.merge.delete_old, 2)
-                delete_old_role = True if reply.content == "1" else False
+                old_role = roles[int(reply.content) - 1]
 
                 reply: Message = await self._ask_for("number", message, mes.merge.move_perms, 2)
                 move_permissions = True if reply.content == "1" else False
 
+                reply: Message = await self._ask_for("number", message, mes.merge.delete_old, 2)
+                delete_old_role = True if reply.content == "1" else False
+
                 if move_permissions:
-                    await role.edit(reason="Rank merge", permissions=old_role.permissions)
+                    await new_role.edit(reason="Rank merge", permissions=old_role.permissions)
                 if delete_old_role:
                     await old_role.delete(reason="someone told me to")
+
+                await self.refresh(message)
             else:
                 await message.author.dm_channel.send(mes.merge.not_a_role)
         else:
@@ -312,30 +338,38 @@ class Client(discord.Client):
         if "guild" in dir(message.channel):
             if message.author.guild_permissions.administrator:
                 await self._ensure_dm_excists(message)
-                reply = await self._ask_for("2", message, mes.install.introduction)
-                if reply.content == "1":
-                    api = await self._ask_for_api(message, mes.install.provide_api)
-                    gw2_name = await self._install_server(message, api)
-                    if gw2_name:
-                        await message.author.dm_channel.send(mes.install.success)
-                        reply = await self._ask_for("2", message, mes.install.register)
-                        if reply.content == "1":
-                            user = {"discord_id": message.channel.guild.owner_id,
-                                    "gw2_name": gw2_name,
-                                    "api": api}
-                            await self._register_guild_leader(message, user)
-                        else:
-                            await message.author.dm_channel.send(mes.install.not_registering)
-                else:
-                    await message.author.dm_channel.send(mes.install.api_help_1)
-                    await asyncio.sleep(1)
-                    await message.author.dm_channel.send(mes.install.api_help_2)
-                    await asyncio.sleep(1)
-                    await message.author.dm_channel.send(mes.install.api_help_3)
-                    await asyncio.sleep(1)
-                    reply = await self._ask_for("2", message, mes.install.api_help_4)
+                async with Manager(self.db) as manager:
+                    server = await manager.get_server(message.guild.id)
+                if not server:
+                    reply = await self._ask_for("number", message, mes.install.introduction, 2)
                     if reply.content == "1":
-                        await self.install(message)
+                        api = await self._ask_for_api(message, mes.install.provide_api)
+                        gw2_name = await self._install_server(message, api)
+                        if gw2_name:
+                            await message.author.dm_channel.send(mes.install.success)
+                            reply = await self._ask_for("number", message, mes.install.register, 2)
+                            if reply.content == "1":
+                                user = {"discord_id": message.channel.guild.owner_id,
+                                        "gw2_name": gw2_name,
+                                        "api": api}
+                                await self._register_guild_leader(message, user)
+                            else:
+                                await message.author.dm_channel.send(mes.install.not_registering)
+                                await self.refresh(message)
+                    else:
+                        await message.author.dm_channel.send(mes.install.api_help_1)
+                        await asyncio.sleep(1)
+                        await message.author.dm_channel.send(mes.install.api_help_2)
+                        await asyncio.sleep(1)
+                        await message.author.dm_channel.send(mes.install.api_help_3)
+                        await asyncio.sleep(1)
+                        reply = await self._ask_for("number", message, mes.install.api_help_4, 2)
+                        if reply.content == "1":
+                            await self.install(message)
+                        else:
+                            await message.author.dm_channel.send(mes.install.goodgye)
+                else:
+                    await message.author.dm_channel.send(mes.install.already_excists)
             else:
                 await message.author.dm_channel.send(mes.errors.permission_error)
         else:
@@ -350,7 +384,7 @@ class Client(discord.Client):
                 if await self._link_user(message, user["gw2_name"]):
                     await self.refresh(message)
             else:
-                reply: Message = await self._ask_for("3", message, mes.register.introduction)
+                reply: Message = await self._ask_for("number", message, mes.register.introduction, 3)
                 if reply.content == "1":
                     api = await self._ask_for_api(message, mes.register.provide_api)
                     await self._register_user(message, api)
@@ -363,7 +397,7 @@ class Client(discord.Client):
                     await asyncio.sleep(2)
                     await message.author.dm_channel.send(mes.register.api_help_3)
 
-                    reply = await self._ask_for("2", message, mes.register.api_help_4)
+                    reply = await self._ask_for("number", message, mes.register.api_help_4, 2)
                     if reply.content == "1":
                         await self.register(message)
                     else:
@@ -388,7 +422,7 @@ class Client(discord.Client):
                 server_data = await manager.get_server(message.guild.id)
                 if server_data:
                     try:
-                        await self._refresh_server(server_data)
+                        await self._refresh_server(server_data, message)
                         await message.author.dm_channel.send(mes.refresh.success)
                     except exceptions.RefreshError as e:
                         if not e.owner_id == message.author.id:
@@ -412,7 +446,7 @@ class Client(discord.Client):
         if "guild" in dir(message.channel):
             if message.author.guild_permissions.administrator:
                 await self._ensure_dm_excists(message)
-                reply: Message = await self._ask_for("2", message, mes.merge.instructions)
+                reply: Message = await self._ask_for("number", message, mes.merge.instructions, 2)
                 if reply.content == "1":
                     await self._merge_roles(message)
                 else:
@@ -439,7 +473,7 @@ class Client(discord.Client):
                     message.author.id, message.channel.guild.id)
                 servers = [server["server_id"] for server in link]
                 if message.channel.guild.id in servers:
-                    reply = await self._ask_for("2", message, mes.unlink.are_you_sure)
+                    reply = await self._ask_for("number", message, mes.unlink.are_you_sure, 2)
                     if reply.content == "1":
                         try:
                             await manager.unlink_user(message.author.id, message.guild.id)
@@ -468,7 +502,7 @@ class Client(discord.Client):
         async with Manager(self.db) as manager:
             user = await manager.get_user(message.author.id)
             if user:
-                reply = await self._ask_for("2", message, mes.unregister.are_you_sure)
+                reply = await self._ask_for("number", message, mes.unregister.are_you_sure, 2)
                 if reply.content == "1":
                     try:
                         await manager.remove_user(message.author.id)
@@ -494,18 +528,14 @@ class Client(discord.Client):
                 await self._ensure_dm_excists(message)
                 async with Manager(self.db) as manager:
                     server_data = await manager.get_server(message.channel.guild.id)
-                    if server_data:
-                        reply = await self._ask_for("2", message, mes.uninstall.are_you_sure)
-                        if reply.content == "1":
-                            try:
-                                await manager.remove_server(message.channel.guild.id)
-                                await message.author.dm_channel.send(mes.uninstall.success)
-                            except exceptions.MissingServer:
-                                await message.author.dm_channel.send(mes.uninstall.not_installed)
-                        else:
-                            await message.author.dm_channel.send(mes.uninstall.regret)
+                if server_data:
+                    reply = await self._ask_for("number", message, mes.uninstall.are_you_sure, 2)
+                    if reply.content == "1":
+                        await self._uninstall_server(message)
                     else:
-                        await message.author.dm_channel.send(mes.uninstall.not_installed)
+                        await message.author.dm_channel.send(mes.uninstall.regret)
+                else:
+                    await message.author.dm_channel.send(mes.uninstall.not_installed)
             else:
                 await message.author.dm_channel.send(mes.errors.permission_error)
         else:

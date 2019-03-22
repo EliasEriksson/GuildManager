@@ -61,7 +61,9 @@ messages = EN({
             "Do you want to rerun the installation?",
         "linked":
             "Im not sure how but you just installed this server and you are already linked. "
-            "This should not be possible, how did you do this?"
+            "This should not be possible, how did you do this?",
+        "goodgye":
+            "Alrite, good bye C:"
     },
     "register": {
         "introduction":
@@ -135,7 +137,24 @@ messages = EN({
         "regret":
             "I knew you would change your mind C:",
         "not_installed":
-            "I am not installed on this server :C"
+            "I am not installed on this server :C",
+        "remove_roles":
+            "Now When you have decided to remove me from the server, do you also want me to  "
+            "remove the discord roles on this server represented as a guild rank?"
+            "```"
+            "1: Yes\n"
+            "2: No"
+            "```",
+        "leave":
+            "Do you also want me to leave the server? You would have to invite me using the "
+            "invite link at `eliaseriksson.eu/guildmanager` "
+            "if you would like to use me in the future."
+            "```"
+            "1: Yes\n"
+            "2: No"
+            "```",
+        "farewell":
+            "I have done as you asked and im now leaving the server I hope I was of any use C:"
     },
     "unregister": {
         "are_you_sure":
@@ -244,7 +263,7 @@ messages = EN({
             "[placeholder]"
             "```",
         "role_question":
-            "Which one of these roles do you wish to merge the old rank into?"
+            "Which one of these roles do you wish to merge the new rank into?"
             "```"
             "[placeholder]"
             "```",
