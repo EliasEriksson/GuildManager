@@ -227,7 +227,18 @@ messages = EN({
             "install this bot to a server you need to have administrator previleges.",
         "wrong_chat_error":
             "This command requires to be executed in the related server, otherwise I dont know "
-            "where I need to do my work =<"
+            "where I need to do my work =<",
+        "faulty_api_user":
+            "The api key the server uses to update the guild roster seams to have been deleted. "
+            "Your discord server owner have been notefied with this issue. Once the issue have "
+            "been resolved you can register again (without suplying an api key) and your role "
+            "will be updated.",
+        "faulty_api_owner":
+            "The guild wars 2 api key used in the installation of this discord server have been "
+            "deleted. This discord server have been uninstalled but the created roles have not "
+            "been deleted. If the api key was not deleted you can send an email to my "
+            "developer `mail@eliaseriksson.eu` and tell him about it so he can fix the bug, "
+            "at least to my knowledge this is not a feature =3"
     },
     "help": {
         "commands": "availeble commands: `/gm register`, `/gm help`, `/gm install`, "

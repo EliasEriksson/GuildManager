@@ -13,8 +13,6 @@ import discord
 from discord import Message, Member, Role
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-# TODO tell the installer that the server is already connected to a guild
-
 
 class Client(discord.Client):
     def __init__(self) -> None:
@@ -115,7 +113,7 @@ class Client(discord.Client):
             guild_list = "\n".join(guild_list)
             question = mes.install.guild_question.replace("[placeholder]", guild_list)
 
-            reply = await self._ask_for("number", message, question, len(guilds))  # TODO test this
+            reply = await self._ask_for("number", message, question, len(guilds))
             guild = guilds[int(reply.content) - 1]
             gw2_name = await session.get_gw2_username()
             try:
@@ -230,12 +228,18 @@ class Client(discord.Client):
             for server_data in servers:
                 server: discord.Guild = self.get_guild(server_data["server_id"])
                 if not server:
-                    continue  # TODO clean this server from database first
+                    await manager.remove_server(server_data["server_id"])
+                    continue
                 else:
                     try:
                         await self._refresh_server(server_data)
                     except exceptions.RefreshError:
                         pass
+                    except exceptions.FaultyApiKey:
+                        if not server.owner.dm_channel:
+                            await server.owner.create_dm()
+                        await server.owner.dm_channel.send(mes.errors.faulty_api_owner)
+                        await manager.remove_faulty_api(server_data["api"])
 
     async def _refresh_server(self, server_data: dict, message: Union[Message, None]=None) -> None:
         """
@@ -344,18 +348,21 @@ class Client(discord.Client):
                     reply = await self._ask_for("number", message, mes.install.introduction, 2)
                     if reply.content == "1":
                         api = await self._ask_for_api(message, mes.install.provide_api)
-                        gw2_name = await self._install_server(message, api)
-                        if gw2_name:
-                            await message.author.dm_channel.send(mes.install.success)
-                            reply = await self._ask_for("number", message, mes.install.register, 2)
-                            if reply.content == "1":
-                                user = {"discord_id": message.channel.guild.owner_id,
-                                        "gw2_name": gw2_name,
-                                        "api": api}
-                                await self._register_guild_leader(message, user)
-                            else:
-                                await message.author.dm_channel.send(mes.install.not_registering)
-                                await self.refresh(message)
+                        if api:
+                            gw2_name = await self._install_server(message, api)
+                            if gw2_name:
+                                await message.author.dm_channel.send(mes.install.success)
+                                reply = await self._ask_for("number", message, mes.install.register, 2)
+                                if reply.content == "1":
+                                    user = {"discord_id": message.channel.guild.owner_id,
+                                            "gw2_name": gw2_name,
+                                            "api": api}
+                                    await self._register_guild_leader(message, user)
+                                else:
+                                    await message.author.dm_channel.send(mes.install.not_registering)
+                                    await self.refresh(message)
+                        else:
+                            return
                     else:
                         await message.author.dm_channel.send(mes.install.api_help_1)
                         await asyncio.sleep(1)
@@ -427,6 +434,9 @@ class Client(discord.Client):
                     except exceptions.RefreshError as e:
                         if not e.owner_id == message.author.id:
                             await message.author.dm_channel.send(mes.errors.refresh_user_error)
+                    except exceptions.FaultyApiKey:
+                        if not message.guild.owner.id == message.author.id:
+                            await message.author.dm_channel.send(mes.errors.faulty_api_user)
                 else:
                     await message.author.dm_channel.send(mes.refresh.missing_server)
         else:
@@ -590,12 +600,12 @@ class Client(discord.Client):
                 if await session.valid_api():
                     return reply.content
                 else:
-                    pass
                     await message.author.dm_channel.send(mes.errors.invalid_api)
                     await asyncio.sleep(5)
                     await self._check_commands(message)
             except exceptions.RequestNotSuccessfull:
                 await message.author.dm_channel.send(mes.errors.unsuccessfull_request)
+        return ""
 
     async def _check_commands(self, message: Message) -> None:
         """

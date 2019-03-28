@@ -29,6 +29,10 @@ class RefreshError(Base):
         self.owner_id = owner_id
 
 
+class FaultyApiKey(Base):
+    pass
+
+
 class RequestNotSuccessfull(Base):
     pass
 

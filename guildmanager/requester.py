@@ -1,9 +1,6 @@
 from typing import List
-# from .easy_namespace import EasyNamespace as EN
 from . import exceptions
 import aiohttp
-
-# TODO use EasyNamespace instead of dict
 
 
 class Requester:
@@ -45,6 +42,19 @@ class Requester:
 
         await self.session.close()
 
+    def _check_status(self, status: int, url):
+        if status == 400:
+            raise exceptions.FaultyApiKey(
+                f"Api '{self.api}' is now faulty and was probably deleted. "
+                f"Remove the server / user asosiated with this key.")
+        elif status == 403:
+            raise exceptions.RequestAuthenticationError(
+                f"Invalid api key: '{self.api}'")
+        elif not status == 200:
+            raise exceptions.RequestNotSuccessfull(
+                    f"Unsuccessful request for url {url}\n"
+                    f"status {status}.")
+
     async def get_guilds(self) -> List[dict]:
         """
         retrives guild information from the guild wars 2 api
@@ -56,31 +66,22 @@ class Requester:
         :return: a list of guilds as dictionaries
         """
 
-        guild_ids = None
+        # guild_ids = None  # TODO can i finally remove this?
         account_url = f"https://api.guildwars2.com/v2/account"
         async with self.session.get(account_url) as response:
-            if not response.status == 200:
-                raise exceptions.RequestNotSuccessfull(
-                    f"Unsuccessful request for url {account_url}\n"
-                    f"status {response.status}")
+            self._check_status(response.status, account_url)
             account = await response.json()
             guild_ids = account["guild_leader"]
         guilds = []
         for guild_id in guild_ids:
             guild_name_url = f"https://api.guildwars2.com/v2/guild/{guild_id}"
             async with self.session.get(guild_name_url) as response:
-                if not response.status == 200:
-                    raise exceptions.RequestNotSuccessfull(
-                        f"Unsuccessful request for url {guild_name_url}\n"
-                        f"status {response.status}")
+                self._check_status(response.status, guild_name_url)
                 guild = await response.json()
 
             ranks_url = f"https://api.guildwars2.com/v2/guild/{guild_id}/ranks"
             async with self.session.get(ranks_url) as response:
-                if not response.status == 200:
-                    raise exceptions.RequestNotSuccessfull(
-                        f"Unsuccessful request for url {ranks_url}\n"
-                        f"status {response.status}")
+                self._check_status(response.status, ranks_url)
                 ranks = await response.json()
                 ranks = [rank["id"] for rank in ranks]
             guilds.append({
@@ -104,10 +105,7 @@ class Requester:
 
         roster_url = f"https://api.guildwars2.com/v2/guild/{guild_id}/members"
         async with self.session.get(roster_url) as response:
-            if not response.status == 200:
-                raise exceptions.RequestNotSuccessfull(
-                    f"Unsuccessful request for url {roster_url}\n"
-                    f"status {response.status}")
+            self._check_status(response.status, roster_url)
             members = await response.json()
             roster = []
             for member in members:
@@ -123,10 +121,7 @@ class Requester:
         """
         ranks_url = f"https://api.guildwars2.com/v2/guild/{guild_id}/ranks"
         async with self.session.get(ranks_url) as response:
-            if not response.status == 200:
-                raise exceptions.RequestNotSuccessfull(
-                    f"Unsuccessful request for url {ranks_url}\n"
-                    f"status {response.status}")
+            self._check_status(response.status, ranks_url)
             ranks = [rank["id"] for rank in await response.json()]
             return ranks
 
@@ -138,25 +133,14 @@ class Requester:
         """
         url = "https://api.guildwars2.com/v2/account"
         async with self.session.get(url) as response:
-            if response.status == 403:
-                raise exceptions.RequestAuthenticationError(
-                    f"Invalid api key: '{self.api}'"
-                )
-            if not response.status == 200:
-                raise exceptions.RequestNotSuccessfull(
-                    f"Unsuccessful request for url {url}\n"
-                    f"status {response.status}")
-
+            self._check_status(response.status, url)
             account = await response.json()
             return account["name"]
 
-    async def valid_api(self):
+    async def valid_api(self) -> bool:
         url = "https://api.guildwars2.com/v2/tokeninfo"
         async with self.session.get(url) as response:
-            if not response.status == 200:
-                raise exceptions.RequestNotSuccessfull(
-                    f"Unsuccessful request for url {url}\n"
-                    f"status {response.status}")
+            self._check_status(response.status, url)
             token_info = await response.json()
             if "account" in token_info["permissions"]:
                 if "guilds" in token_info["permissions"]:

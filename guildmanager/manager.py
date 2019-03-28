@@ -286,6 +286,31 @@ class Manager:
             else:
                 raise exceptions.MissingServer(f"Server with id {server_id} doesn't excist")
 
+    async def remove_faulty_api(self, api: str) -> None:
+        check_server_command = f"""
+        select {self.server_keys.server_id} from {self.tables.servers}
+        where {self.server_keys.api} = '{api}'
+        """
+
+        check_user_api = f"""
+        select {self.user_keys.discord_id} from {self.tables.users}
+        where {self.user_keys.api} = '{api}'
+        """
+
+        async with aiosqlite.connect(self.db) as connection:
+            cursor = await connection.cursor()
+
+            await cursor.execute(check_server_command)
+            server_id = await cursor.fetchall()
+            if server_id:
+                await self.remove_server(server_id[0][0])
+
+            await cursor.execute(check_user_api)
+            user_discord_id = await cursor.fetchall()
+            if user_discord_id:
+                await self.remove_user(user_discord_id[0][0])
+            await connection.commit()
+
     async def unlink_user(self, discord_id: int, server_id: int):
         """
         unlinks a users assosiation with a server
