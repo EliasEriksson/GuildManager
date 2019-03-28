@@ -517,6 +517,7 @@ class Client(discord.Client):
                     try:
                         await manager.remove_user(message.author.id)
                         await message.author.dm_channel.send(mes.unregister.success)
+                        await self.refresh(message)
                     except exceptions.MissingUser:
                         await message.author.dm_channel.send(mes.unregister.not_registered)
                 else:
