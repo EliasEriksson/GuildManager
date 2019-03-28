@@ -1,6 +1,8 @@
 # GuildManager
 Manages your discord servers roles to match the ranks each registered player have in a guild wars 2 guild.
 
+To install this bot YOU need to be the guild leader of the guild you are trying to connect AND you need to have administrator previleges in the discord server you are trying to connect it to.
+
 Invite link (now online): https://discordapp.com/oauth2/authorize?client_id=523300141835354161&permissions=268445696&scope=bot \
 pls dont break it =3
 
