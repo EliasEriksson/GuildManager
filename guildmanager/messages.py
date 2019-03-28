@@ -53,7 +53,7 @@ messages = EN({
             "Now you are registered aswell, just make sure the rest of your guild members "
             "register themselves aswell or else im not really going to do anything.",
         "not_registering":
-            "When you want to register just run the `/register` command in the server chat again.",
+            "When you want to register just run the `/gm register` command in the server chat again.",
         "already_excists":
             "This server is already connected to a guild, run `/uninstall` before you try to "
             "install another guild.",
